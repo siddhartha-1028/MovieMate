@@ -1,13 +1,30 @@
-<h2>Search Results:</h2>
-
-{% if error %}
-    <p style="color:red;">{{ error }}</p>
-{% endif %}
-
-{% for movie in movies %}
-    <div>
-        <h3>{{ movie.title }}</h3>
-        <img src="https://image.tmdb.org/t/p/w500{{ movie.poster_path }}" width="100">
-        <p>{{ movie.overview }}</p>
+{% extends "base.html" %}
+{% block content %}
+<h2 class="mb-3">Movie Search</h2>
+<form method="GET" action="{{ url_for('search') }}">
+    <div class="input-group mb-4">
+        <input type="text" name="query" class="form-control" placeholder="Search for movies...">
+        <button class="btn btn-primary" type="submit">Search</button>
     </div>
-{% endfor %}
+</form>
+
+{% if movies %}
+    <div class="row">
+        {% for movie in movies %}
+            <div class="col-md-3 mb-4">
+                <div class="card h-100">
+                    {% if movie.poster_path %}
+                        <img src="https://image.tmdb.org/t/p/w500{{ movie.poster_path }}" class="card-img-top">
+                    {% endif %}
+                    <div class="card-body">
+                        <h5 class="card-title">{{ movie.title }}</h5>
+                        <p class="card-text">{{ movie.overview[:100] }}...</p>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <p>No movies found. Try a different search.</p>
+{% endif %}
+{% endblock %}

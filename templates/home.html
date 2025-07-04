@@ -1,18 +1,24 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>MovieMate - Home</title>
-</head>
-<body>
-    <h1>Welcome to MovieMate!</h1>
-    
-    <p>You are now logged in. You can search for your favorite movies using the link below:</p>
+{% extends "base.html" %}
+{% block content %}
+
+{% if current_user.is_authenticated %}
+<h1 class="mb-3">Welcome, {{ current_user.username }}!</h1>
+<p class="lead">Start searching for your favorite movies below.</p>
 
 
-    <form action="/search">
-        <input type="text" name="query" placeholder="Search a movie.." >
-        <button type="submit">Search</button>
-    </form>
-    <a href="/logout"><button>Logout</button></a>
-</body>
-</html>
+
+<form method="GET" action="{{ url_for('search') }}">
+    <div class="input-group mb-4">
+        <input type="text" name="query" class="form-control" placeholder="Search for movies..." required>
+        <button class="btn btn-primary" type="submit">Search</button>
+    </div>
+</form>
+
+{% else %}
+<h1 class="mb-3">Welcome to MovieMate</h1>
+<p class="lead">Your personalized movie search experience starts here.</p>
+<a class="btn btn-outline-primary me-2" href="{{ url_for('login') }}">Login</a>
+<a class="btn btn-primary" href="{{ url_for('register') }}">Sign Up</a>
+{% endif %}
+
+{% endblock %}

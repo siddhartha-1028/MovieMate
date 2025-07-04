@@ -1,98 +1,207 @@
 import os
+import secrets
+from PIL import Image
 from dotenv import load_dotenv
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, url_for, flash, redirect, request
 from flask_sqlalchemy import SQLAlchemy
-from werkzeug.security import generate_password_hash, check_password_hash
+from flask_bcrypt import Bcrypt
+from flask_login import LoginManager, UserMixin, login_user, current_user, logout_user, login_required
+from flask_wtf import FlaskForm
+from flask_wtf.file import FileField, FileAllowed
+from wtforms import StringField, PasswordField, SubmitField, BooleanField
+from wtforms.validators import DataRequired, Length, Email, EqualTo, ValidationError
 import requests
 
+# -------------------- Configuration --------------------
 load_dotenv()
 
-app= Flask(__name__)
-app.secret_key = os.getenv('SECRET_KEY')
+app = Flask(__name__)
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
+app.config['UPLOAD_FOLDER'] = 'static/profile_pics'
 API_KEY = os.getenv('API_KEY')
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 db = SQLAlchemy(app)
+bcrypt = Bcrypt(app)
+login_manager = LoginManager(app)
+login_manager.login_view = 'login'
 
-class User(db.Model):
+# -------------------- Models --------------------
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+
+class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(150), unique=True, nullable=False)
-    password = db.Column(db.String(150), nullable=False)
+    username = db.Column(db.String(20), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    image_file = db.Column(db.String(20), nullable=False, default='default.jpg')
+    password = db.Column(db.String(60), nullable=False)
 
-@app.route('/')
-def index():
-    return render_template('index.html')
+    def __repr__(self):
+        return f"User('{self.username}', '{self.email}', '{self.image_file}')"
 
-@app.route('/home')
+# -------------------- Forms --------------------
+class RegistrationForm(FlaskForm):
+    username = StringField('Username', validators=[DataRequired(), Length(min=2, max=20)])
+    email = StringField('Email', validators=[DataRequired(), Email()])
+    password = PasswordField('Password', validators=[DataRequired()])
+    confirm_password = PasswordField('Confirm Password', validators=[DataRequired(), EqualTo('password')])
+    submit = SubmitField('Sign Up')
+
+    def validate_username(self, username):
+        user = User.query.filter_by(username=username.data).first()
+        if user:
+            raise ValidationError('That username is taken. Please choose a different one.')
+
+    def validate_email(self, email):
+        user = User.query.filter_by(email=email.data).first()
+        if user:
+            raise ValidationError('That email is taken. Please choose a different one.')
+
+
+class LoginForm(FlaskForm):
+    email = StringField('Email', validators=[DataRequired(), Email()])
+    password = PasswordField('Password', validators=[DataRequired()])
+    remember = BooleanField('Remember Me')
+    submit = SubmitField('Login')
+
+
+class UpdateAccountForm(FlaskForm):
+    username = StringField('Username', validators=[DataRequired(), Length(min=2, max=20)])
+    email = StringField('Email', validators=[DataRequired(), Email()])
+    picture = FileField('Update Profile Picture', validators=[FileAllowed(['jpg', 'png'])])
+    submit = SubmitField('Update')
+
+    def validate_username(self, username):
+        if username.data != current_user.username:
+            user = User.query.filter_by(username=username.data).first()
+            if user:
+                raise ValidationError('That username is taken. Please choose a different one.')
+
+    def validate_email(self, email):
+        if email.data != current_user.email:
+            user = User.query.filter_by(email=email.data).first()
+            if user:
+                raise ValidationError('That email is taken. Please choose a different one.')
+
+# -------------------- Utility Functions --------------------
+def save_picture(form_picture):
+    random_hex = secrets.token_hex(8)
+    _, f_ext = os.path.splitext(form_picture.filename)
+    picture_fn = random_hex + f_ext
+    picture_path = os.path.join(app.root_path, 'static/profile_pics', picture_fn)
+
+    output_size = (125, 125)
+    i = Image.open(form_picture)
+    i.thumbnail(output_size)
+    i.save(picture_path)
+
+    return picture_fn
+
+# -------------------- Routes --------------------
+@app.route("/")
+@app.route("/home")
 def home():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-
     return render_template('home.html')
 
-@app.route('/search')
-def search():
-    query = request.args.get('query')
-    url = f"https://api.themoviedb.org/3/search/movie?api_key={API_KEY}&query={query}"
 
+@app.route("/about")
+def about():
+    return render_template('about.html', title='About')
+
+
+@app.route("/register", methods=['GET', 'POST'])
+def register():
+    if current_user.is_authenticated:
+        return redirect(url_for('home'))
+    form = RegistrationForm()
+    if form.validate_on_submit():
+        hashed_password = bcrypt.generate_password_hash(form.password.data).decode('utf-8')
+        user = User(username=form.username.data, email=form.email.data, password=hashed_password)
+        db.session.add(user)
+        db.session.commit()
+        flash('Your account has been created! You can now log in.', 'success')
+        return redirect(url_for('login'))
+    return render_template('register.html', form=form)
+
+
+@app.route("/login", methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('home'))
+    form = LoginForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(email=form.email.data).first()
+        if user and bcrypt.check_password_hash(user.password, form.password.data):
+            login_user(user, remember=form.remember.data)
+            next_page = request.args.get('next')
+            flash('Login Successful! You can search for movies now', 'success')
+            return redirect(next_page) if next_page else redirect(url_for('home'))
+        else:
+            flash('Login Unsuccessful. Please check email and password', 'danger')
+    return render_template('login.html', form=form)
+
+
+@app.route("/logout")
+def logout():
+    logout_user()
+    return redirect(url_for('home'))
+
+
+@app.route("/account", methods=['GET', 'POST'])
+@login_required
+def account():
+    form = UpdateAccountForm()
+    if form.validate_on_submit():
+        if form.picture.data:
+            picture_file = save_picture(form.picture.data)
+            current_user.image_file = picture_file
+        current_user.username = form.username.data
+        current_user.email = form.email.data
+        db.session.commit()
+        flash('Your account has been updated!', 'success')
+        return redirect(url_for('account'))
+    elif request.method == 'GET':
+        form.username.data = current_user.username
+        form.email.data = current_user.email
+    image_file = url_for('static', filename='profile_pics/' + current_user.image_file)
+    return render_template('account.html', image_file=image_file, form=form)
+
+
+@app.route("/search_page")
+@login_required
+def search_page():
+    return render_template('search.html')
+
+
+@app.route("/search")
+@login_required
+def search():
+    query = request.args.get('query', '').strip()
+    
+    if not query:
+        flash("Please enter a movie to search.", "warning")
+        return redirect(url_for('search_page'))
+
+    url = f"https://api.themoviedb.org/3/search/movie?api_key={API_KEY}&query={query}"
+    
     try:
-        response = requests.get(url, timeout=5)  # Set timeout to avoid infinite waiting
-        response.raise_for_status()  # Raise exception for non-200 responses
+        response = requests.get(url, timeout=5)
+        response.raise_for_status()
         data = response.json()
         movies = data.get('results', [])
         return render_template('results.html', movies=movies)
 
     except requests.exceptions.Timeout:
-        error_message = "Currently cannot connect to TMDB. Please try again later."
-        return render_template('results.html', movies=[], error=error_message)
+        flash("Cannot connect to TMDB. Try again later.", "danger")
+        return render_template('results.html', movies=[])
 
-    except requests.exceptions.RequestException as e:
-        error_message = "An unexpected error occurred. Please try again later."
-        print(f"Error: {e}")  # Log error for debugging
-        return render_template('results.html', movies=[], error=error_message)
+    except requests.exceptions.RequestException:
+        flash("Unexpected error occurred. Try again later.", "danger")
+        return render_template('results.html', movies=[])
 
-@app.route('/signup', methods=['GET', 'POST'])
-def signup():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-
-        existing_user = User.query.filter_by(username=username).first()
-        if existing_user:
-            return "Username already exists. Try another."
-
-        hashed_password = generate_password_hash(password)
-
-        new_user = User(username=username, password=hashed_password)
-        db.session.add(new_user)
-        db.session.commit()
-
-        return redirect(url_for('login'))
-
-    return render_template('signup.html')
-
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-
-        user = User.query.filter_by(username=username).first()
-
-        if user and check_password_hash(user.password, password):
-            session['user_id'] = user.id
-            return redirect(url_for('home'))
-        else:
-            return "Invalid credentials."
-
-    return render_template('login.html')
-
-@app.route('/logout')
-def logout():
-    session.pop('user_id', None)
-    return redirect(url_for('login'))
-
-if __name__ =='__main__':
+# -------------------- Run App --------------------
+if __name__ == '__main__':
     app.run(debug=True)
-
