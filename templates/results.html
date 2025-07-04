@@ -1,4 +1,9 @@
 <h2>Search Results:</h2>
+
+{% if error %}
+    <p style="color:red;">{{ error }}</p>
+{% endif %}
+
 {% for movie in movies %}
     <div>
         <h3>{{ movie.title }}</h3>

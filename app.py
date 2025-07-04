@@ -32,12 +32,24 @@ def home():
 
 @app.route('/search')
 def search():
-    query= request.args.get('query')
+    query = request.args.get('query')
     url = f"https://api.themoviedb.org/3/search/movie?api_key={API_KEY}&query={query}"
-    response= requests.get(url)
-    data= response.json()
-    movies= data['results']
-    return render_template('results.html',movies=movies)
+
+    try:
+        response = requests.get(url, timeout=5)  # Set timeout to avoid infinite waiting
+        response.raise_for_status()  # Raise exception for non-200 responses
+        data = response.json()
+        movies = data.get('results', [])
+        return render_template('results.html', movies=movies)
+
+    except requests.exceptions.Timeout:
+        error_message = "Currently cannot connect to TMDB. Please try again later."
+        return render_template('results.html', movies=[], error=error_message)
+
+    except requests.exceptions.RequestException as e:
+        error_message = "An unexpected error occurred. Please try again later."
+        print(f"Error: {e}")  # Log error for debugging
+        return render_template('results.html', movies=[], error=error_message)
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
