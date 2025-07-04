@@ -1,1 +1,14 @@
-venv
+# Virtual environment
+venv/
+
+# Bytecode files
+__pycache__/
+*.pyc
+
+# Database file
+instance/database.db
+
+# Secret files
+.env
+
+
