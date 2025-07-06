@@ -128,7 +128,28 @@ def save_picture(form_picture):
 @app.route("/")
 @app.route("/home")
 def home():
-    return render_template('home.html')
+    # Fetch trending movies from TMDB
+    trending_url = f"https://api.themoviedb.org/3/trending/movie/week?api_key={API_KEY}"
+    trending_movies = []
+    try:
+        trending_resp = requests.get(trending_url, timeout=5).json()
+        trending_movies = trending_resp.get("results", [])
+    except:
+        flash("Failed to load trending movies", "warning")
+
+    # Fetch popular movies from TMDB
+    popular_url = f"https://api.themoviedb.org/3/movie/popular?api_key={API_KEY}"
+    popular_movies = []
+    try:
+        popular_resp = requests.get(popular_url, timeout=5).json()
+        popular_movies = popular_resp.get("results", [])
+    except:
+        flash("Failed to load popular movies", "warning")
+
+    return render_template("home.html",
+                           trending_movies=trending_movies,
+                           popular_movies=popular_movies)
+
 
 
 @app.route("/about")
