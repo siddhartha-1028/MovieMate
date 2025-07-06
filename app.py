@@ -217,9 +217,31 @@ def search():
         data = response.json()
         movies = data.get('results', [])
 
-        #Get ML recommendations if available
-        recommended_movies = movie_recommender(query)
-        recommended_movies = list(recommended_movies)
+        #Get ML recommendations
+        recommended_titles = movie_recommender(query)
+        recommended_movies = []
+
+        #For each recommended title, fetch poster via TMDB
+        for title in recommended_titles:
+            tmdb_url = f"https://api.themoviedb.org/3/search/movie?api_key={API_KEY}&query={title}"
+            rec_response = requests.get(tmdb_url, timeout=5)
+            rec_response.raise_for_status()
+            rec_data = rec_response.json()
+            results = rec_data.get('results', [])
+            
+            if results:
+                first_result = results[0]  #Take the first matching movie
+                recommended_movies.append({
+                    'title': first_result.get('title'),
+                    'poster_path': first_result.get('poster_path'),
+                    'overview': first_result.get('overview', '')[:100]  #Short overview
+                })
+            else:
+                recommended_movies.append({
+                    'title': title,
+                    'poster_path': None,
+                    'overview': ''
+                })
 
         return render_template('results.html', movies=movies, recommended_movies=recommended_movies)
 
@@ -230,6 +252,7 @@ def search():
     except requests.exceptions.RequestException:
         flash("Unexpected error occurred. Try again later.", "danger")
         return render_template('results.html', movies=[], recommended_movies=[])
+
 
 
 # -------------------- Run App --------------------
