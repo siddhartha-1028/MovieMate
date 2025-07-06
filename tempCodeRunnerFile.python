@@ -1,0 +1,48 @@
+import joblib
+import pandas as pd
+from flask import Flask, render_template, request
+
+app = Flask(__name__)
+
+# Load model and data once when app starts
+new_df = pd.read_csv('final_movie_data.csv')
+model = joblib.load('movie_recommender_model.pkl')
+tfidf = joblib.load('tfidf_matrix.pkl')
+vectorizer = joblib.load('tfidf_vectorizer.pkl')
+
+# Recommendation function
+def movie_recommender(movie_title, k=5):
+    movie_title = movie_title.lower()
+    if movie_title not in new_df['title'].values:
+        return [], []
+
+    movie_index = new_df[new_df['title'] == movie_title].index[0]
+    movie_tfidf = tfidf[movie_index]
+    
+    distances, indices = model.kneighbors(movie_tfidf, n_neighbors=k+1)
+    
+    indices = indices.flatten()[1:]
+    recommended_movies = new_df.iloc[indices]['title'].values
+    distances = distances.flatten()[1:]
+    
+    return recommended_movies, distances
+
+# Home route
+@app.route('/', methods=['GET', 'POST'])
+def home():
+    recommendations = []
+    error = ""
+    
+    if request.method == 'POST':
+        movie_title = request.form.get('movie')
+        recommended_movies, _ = movie_recommender(movie_title)
+        
+        if not recommended_movies.any():
+            error = "Movie not found. Please enter a valid movie title."
+        else:
+            recommendations = recommended_movies
+    
+    return render_template('recommend.html', recommendations=recommendations, error=error)
+
+if __name__ == "__main__":
+    app.run(debug=True)

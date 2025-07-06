@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
+
 <h2 class="mb-3">Movie Search</h2>
 <form method="GET" action="{{ url_for('search') }}">
     <div class="input-group mb-4">
@@ -8,7 +9,9 @@
     </div>
 </form>
 
+<!-- TMDB Results -->
 {% if movies %}
+    <h3 class="mb-3">TMDB Search Results:</h3>
     <div class="row">
         {% for movie in movies %}
             <div class="col-md-3 mb-4">
@@ -27,4 +30,19 @@
 {% else %}
     <p>No movies found. Try a different search.</p>
 {% endif %}
+
+<hr>
+
+<!-- ML-Based Recommendations -->
+{% if recommended_movies|length > 0 %}
+    <h3 class="mb-3">Recommended Movies Based on Your Search:</h3>
+    <ul class="list-group mb-4">
+        {% for rec in recommended_movies %}
+            <li class="list-group-item">{{ rec.title() }}</li>
+        {% endfor %}
+    </ul>
+{% else %}
+    <p>No personalized recommendations found for this movie.</p>
+{% endif %}
+
 {% endblock %}

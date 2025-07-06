@@ -11,6 +11,8 @@ from flask_wtf.file import FileField, FileAllowed
 from wtforms import StringField, PasswordField, SubmitField, BooleanField
 from wtforms.validators import DataRequired, Length, Email, EqualTo, ValidationError
 import requests
+import joblib
+import pandas as pd
 
 # -------------------- Configuration --------------------
 load_dotenv()
@@ -21,10 +23,32 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 app.config['UPLOAD_FOLDER'] = 'static/profile_pics'
 API_KEY = os.getenv('API_KEY')
 
+#Load your final_movie_data.csv and ML files
+new_df = pd.read_csv('Datapreprocessing/final_movie_data.csv')
+model = joblib.load('movie_recommender_model.pkl')
+tfidf = joblib.load('tfidf_matrix.pkl')
+vectorizer = joblib.load('tfidf_vectorizer.pkl')
+
 db = SQLAlchemy(app)
 bcrypt = Bcrypt(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
+
+#Recommendation function
+def movie_recommender(movie_title, k=5):
+    movie_title = movie_title.lower()
+    if movie_title not in new_df['title'].values:
+        return []  # Movie not found in dataset
+
+    movie_index = new_df[new_df['title'] == movie_title].index[0]
+    movie_tfidf = tfidf[movie_index]
+
+    distances, indices = model.kneighbors(movie_tfidf, n_neighbors=k+1)
+    indices = indices.flatten()[1:]
+    recommended_movies = new_df.iloc[indices]['title'].values
+
+    return recommended_movies
+
 
 # -------------------- Models --------------------
 @login_manager.user_loader
@@ -180,7 +204,7 @@ def search_page():
 @login_required
 def search():
     query = request.args.get('query', '').strip()
-    
+
     if not query:
         flash("Please enter a movie to search.", "warning")
         return redirect(url_for('search_page'))
@@ -192,15 +216,21 @@ def search():
         response.raise_for_status()
         data = response.json()
         movies = data.get('results', [])
-        return render_template('results.html', movies=movies)
+
+        #Get ML recommendations if available
+        recommended_movies = movie_recommender(query)
+        recommended_movies = list(recommended_movies)
+
+        return render_template('results.html', movies=movies, recommended_movies=recommended_movies)
 
     except requests.exceptions.Timeout:
         flash("Cannot connect to TMDB. Try again later.", "danger")
-        return render_template('results.html', movies=[])
+        return render_template('results.html', movies=[], recommended_movies=[])
 
     except requests.exceptions.RequestException:
         flash("Unexpected error occurred. Try again later.", "danger")
-        return render_template('results.html', movies=[])
+        return render_template('results.html', movies=[], recommended_movies=[])
+
 
 # -------------------- Run App --------------------
 if __name__ == '__main__':
