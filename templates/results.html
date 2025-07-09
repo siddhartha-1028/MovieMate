@@ -18,7 +18,7 @@
                     {% if movie.poster_path %}
                         <img src="https://image.tmdb.org/t/p/w500{{ movie.poster_path }}" class="card-img-top" alt="{{ movie.title }} poster">
                     {% else %}
-                        <img src="{{ url_for('static', filename='default_poster.jpg') }}" class="card-img-top" alt="No poster available">
+                        <img src="{{ url_for('static', filename='default-poster.png') }}" class="card-img-top" alt="No poster available">
                     {% endif %}
                     <div class="card-body">
                         <h5 class="card-title">{{ movie.title }}</h5>
@@ -43,7 +43,7 @@
                     {% if rec.poster_path %}
                         <img src="https://image.tmdb.org/t/p/w500{{ rec.poster_path }}" class="card-img-top" alt="{{ rec.title }} poster">
                     {% else %}
-                        <img src="{{ url_for('static', filename='default_poster.jpg') }}" class="card-img-top" alt="No poster available">
+                        <img src="{{ url_for('static', filename='default-poster.png') }}" class="card-img-top" alt="No poster available">
                     {% endif %}
                     <div class="card-body">
                         <h5 class="card-title">{{ rec.title }}</h5>
