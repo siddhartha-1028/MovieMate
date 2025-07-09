@@ -12,8 +12,10 @@ from wtforms import StringField, PasswordField, SubmitField, BooleanField
 from wtforms.validators import DataRequired, Length, Email, EqualTo, ValidationError
 from datetime import datetime
 from history_recommender import recommend_from_history
+from model_loader import load_model
 import requests
 import joblib
+import re
 import pandas as pd
 
 # -------------------- Configuration --------------------
@@ -27,9 +29,7 @@ API_KEY = os.getenv('API_KEY')
 
 #Load your final_movie_data.csv and ML files
 new_df = pd.read_csv('Datapreprocessing/final_movie_data.csv')
-model = joblib.load('movie_recommender_model.pkl')
-tfidf = joblib.load('tfidf_matrix.pkl')
-vectorizer = joblib.load('tfidf_vectorizer.pkl')
+model, tfidf, vectorizer = load_model()
 
 db = SQLAlchemy(app)
 bcrypt = Bcrypt(app)
@@ -51,6 +51,18 @@ def movie_recommender(movie_title, k=5):
 
     return recommended_movies
 
+def fetch_tmdb_results(query, endpoint="search/movie"):
+    try:
+        url = f"https://api.themoviedb.org/3/{endpoint}?api_key={API_KEY}&query={query}"
+        response = requests.get(url, timeout=5)
+        response.raise_for_status()
+        return response.json().get("results", [])
+    except requests.exceptions.Timeout:
+        flash("TMDb API timed out. Please try again later.", "danger")
+        return []
+    except requests.exceptions.RequestException:
+        flash("TMDb API failed. Please try again later.", "danger")
+        return []
 
 # -------------------- Models --------------------
 @login_manager.user_loader
@@ -122,8 +134,20 @@ class UpdateAccountForm(FlaskForm):
             if user:
                 raise ValidationError('That email is taken. Please choose a different one.')
 
+class SearchForm(FlaskForm):
+    query = StringField('Search', validators=[DataRequired()])
+    submit = SubmitField('Search')
+
 # -------------------- Utility Functions --------------------
 def save_picture(form_picture):
+    # Check file size (limit to 1 MB)
+    form_picture.seek(0, os.SEEK_END)
+    size = form_picture.tell()
+    form_picture.seek(0)
+    if size > 1 * 1024 * 1024:  # 1 MB
+        flash("Profile picture must be under 1MB", "danger")
+        return current_user.image_file  # keep the old one
+
     random_hex = secrets.token_hex(8)
     _, f_ext = os.path.splitext(form_picture.filename)
     picture_fn = random_hex + f_ext
@@ -179,7 +203,7 @@ def register():
         user = User(username=form.username.data, email=form.email.data, password=hashed_password)
         db.session.add(user)
         db.session.commit()
-        flash('Your account has been created! You can now log in.', 'success')
+        flash('Account created successfully! Please log in to continue.', 'success')
         return redirect(url_for('login'))
     return render_template('register.html', form=form)
 
@@ -197,15 +221,15 @@ def login():
             flash('Login Successful! You can search for movies now', 'success')
             return redirect(next_page) if next_page else redirect(url_for('home'))
         else:
-            flash('Login Unsuccessful. Please check email and password', 'danger')
+            flash('Invalid login. Please check your email and password.', 'danger')
     return render_template('login.html', form=form)
 
 
 @app.route("/logout")
 def logout():
     logout_user()
+    flash("You have been logged out.", "info")
     return redirect(url_for('home'))
-
 
 @app.route("/account", methods=['GET', 'POST'])
 @login_required
@@ -218,7 +242,7 @@ def account():
         current_user.username = form.username.data
         current_user.email = form.email.data
         db.session.commit()
-        flash('Your account has been updated!', 'success')
+        flash('Your profile has been updated successfully.', 'success')
         return redirect(url_for('account'))
     elif request.method == 'GET':
         form.username.data = current_user.username
@@ -227,29 +251,37 @@ def account():
     return render_template('account.html', image_file=image_file, form=form)
 
 
-@app.route("/search_page")
+@app.route("/search_page", methods=["GET", "POST"])
 @login_required
 def search_page():
-    return render_template('search.html')
-
+    form = SearchForm()
+    return render_template('search.html', form=form)
 
 @app.route("/search")
 @login_required
 def search():
     query = request.args.get('query', '').strip()
 
-    if not query:
-        flash("Please enter a movie to search.", "warning")
+    # Block empty, too short, or non-alphanumeric input
+    if not query or len(query) < 2 or not re.match(r"^[a-zA-Z0-9\s:,'&\.\-\(\)\[\]!]+$", query):
+        flash("Invalid search input. Please enter a valid movie name.", "warning")
         return redirect(url_for('search_page'))
-
-    url = f"https://api.themoviedb.org/3/search/movie?api_key={API_KEY}&query={query}"
-    
+        
     try:
-        response = requests.get(url, timeout=5)
-        response.raise_for_status()
-        data = response.json()
-        movies = data.get('results', [])
+        movies = fetch_tmdb_results(query)
+        seen_titles = set()
+        filtered_movies = []
 
+        for movie in movies:
+            title = movie.get('title')
+            if title and title not in seen_titles:
+                seen_titles.add(title)
+                filtered_movies.append(movie)
+
+        movies = filtered_movies
+
+        if not movies:
+            flash("No results found for that search.", "warning")
         # ✅ Save the search to the database
         # from models import UserSearch
         search_record = UserSearch(movie_title=query, user_id=current_user.id)
@@ -262,14 +294,16 @@ def search():
 
         # ✅ For each recommended title, fetch poster via TMDB
         for title in recommended_titles:
-            tmdb_url = f"https://api.themoviedb.org/3/search/movie?api_key={API_KEY}&query={title}"
-            rec_response = requests.get(tmdb_url, timeout=5)
-            rec_response.raise_for_status()
-            rec_data = rec_response.json()
-            results = rec_data.get('results', [])
-            
+            if title.lower() in seen_titles:
+                continue
+            seen_titles.add(title.lower())
+            results = fetch_tmdb_results(title)
+
             if results:
-                first_result = results[0]
+                first_result = next(
+                    (m for m in results if m.get('title', '').lower() == title.lower()), 
+                    results[0] if results else None
+                )
                 recommended_movies.append({
                     'title': first_result.get('title'),
                     'poster_path': first_result.get('poster_path'),
@@ -295,35 +329,31 @@ def search():
 @app.route("/recommendations")
 @login_required
 def recommendations():
-    # from models import UserSearch
-
-    # ✅ Fetch user's full search history (or last N movies if needed)
     user_searches = (
         db.session.query(UserSearch.movie_title)
         .filter_by(user_id=current_user.id)
         .order_by(UserSearch.timestamp.desc())
-        .limit(10)  # or remove .limit() to use all
+        .limit(10)
         .all()
     )
 
-    # ✅ Convert to list of titles
     movie_titles = [r[0] for r in user_searches]
 
     if not movie_titles:
         flash("You haven't searched for any movies yet.", "info")
         return render_template("recommendations.html", rec_movies=[])
 
-    # ✅ Generate recommendations using ML model
     recommended_df = recommend_from_history(movie_titles)
 
+    if recommended_df.empty:
+        flash("Start searching for movies to get personalized recommendations!", "info")
+        return render_template("recommendations.html", rec_movies=[])
 
-    # ✅ Fetch poster and overview via TMDB
     rec_movies = []
     for _, row in recommended_df.iterrows():
-        tmdb_url = f"https://api.themoviedb.org/3/search/movie?api_key={API_KEY}&query={row['title']}"
-        r = requests.get(tmdb_url).json()
-        poster_path = r['results'][0]['poster_path'] if r['results'] else None
-        overview = r['results'][0]['overview'] if r['results'] else "No description."
+        results = fetch_tmdb_results(row['title'])
+        poster_path = results[0]['poster_path'] if results else None
+        overview = results[0]['overview'] if results else "No description."
 
         rec_movies.append({
             "title": row['title'],

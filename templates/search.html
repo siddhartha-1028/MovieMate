@@ -1,11 +1,29 @@
 {% extends "base.html" %}
 {% block content %}
 <h2 class="mb-3">Movie Search</h2>
-<form method="GET" action="{{ url_for('search') }}">
-    {{ form.hidden_tag() }}
-    <div class="input-group mb-4">
-        <input type="text" name="query" class="form-control" placeholder="Search for movies..." required>
-        <button class="btn btn-primary" type="submit">Search</button>
+
+<div id="search-container">
+    <form method="GET" action="{{ url_for('search') }}" onsubmit="showSpinner()">
+        {{ form.hidden_tag() }}
+        <div class="input-group mb-4">
+            <input type="text" name="query" class="form-control" placeholder="Search for movies..." required>
+            <button class="btn btn-primary" type="submit">Search</button>
+        </div>
+    </form>
+
+    <!-- Spinner: hidden by default -->
+    <div id="spinner" style="display: none; text-align: center; margin-top: 10px;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p>Searching movies...</p>
     </div>
-</form>
+</div>
+
+<!-- JavaScript to show spinner -->
+<script>
+function showSpinner() {
+    document.getElementById("spinner").style.display = "block";
+}
+</script>
 {% endblock %}
