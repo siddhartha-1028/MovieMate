@@ -2,6 +2,7 @@
 {% block content %}
 <h2 class="mb-3">Movie Search</h2>
 <form method="GET" action="{{ url_for('search') }}">
+    {{ form.hidden_tag() }}
     <div class="input-group mb-4">
         <input type="text" name="query" class="form-control" placeholder="Search for movies..." required>
         <button class="btn btn-primary" type="submit">Search</button>

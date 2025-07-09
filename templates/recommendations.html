@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2 class="mb-3">Your Personalized Movie Recommendations</h2>
+
+{% if rec_movies %}
+        {% for movie in rec_movies %}
+            <div class="col-md-3 mb-4">
+                <div class="card h-100">
+                    {% if movie.poster_path %}
+                        <img src="https://image.tmdb.org/t/p/w500{{ movie.poster_path }}" class="card-img-top" alt="{{ movie.title }} poster">
+                    {% else %}
+                        <img src="{{ url_for('static', filename='default_poster.jpg') }}" class="card-img-top" alt="No poster available">
+                    {% endif %}
+                    <div class="card-body">
+                        <h5 class="card-title">{{ movie.title }}</h5>
+                        <p class="card-text">{{ movie.overview[:150] }}{% if movie.overview|length > 150 %}...{% endif %}</p>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <p>You have no recommendations yet. Start searching for movies!</p>
+{% endif %}
+
+{% endblock %}

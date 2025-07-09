@@ -10,6 +10,8 @@ from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed
 from wtforms import StringField, PasswordField, SubmitField, BooleanField
 from wtforms.validators import DataRequired, Length, Email, EqualTo, ValidationError
+from datetime import datetime
+from history_recommender import recommend_from_history
 import requests
 import joblib
 import pandas as pd
@@ -56,12 +58,22 @@ def load_user(user_id):
     return User.query.get(int(user_id))
 
 
+class UserSearch(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    movie_title = db.Column(db.String(255), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<UserSearch {self.movie_title} by User {self.user_id}>"
+    
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(20), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     image_file = db.Column(db.String(20), nullable=False, default='default.jpg')
     password = db.Column(db.String(60), nullable=False)
+    searches = db.relationship('UserSearch', backref='user', lazy=True)
 
     def __repr__(self):
         return f"User('{self.username}', '{self.email}', '{self.image_file}')"
@@ -238,11 +250,17 @@ def search():
         data = response.json()
         movies = data.get('results', [])
 
-        #Get ML recommendations
+        # ✅ Save the search to the database
+        # from models import UserSearch
+        search_record = UserSearch(movie_title=query, user_id=current_user.id)
+        db.session.add(search_record)
+        db.session.commit()
+
+        # ✅ Get ML recommendations based on this movie
         recommended_titles = movie_recommender(query)
         recommended_movies = []
 
-        #For each recommended title, fetch poster via TMDB
+        # ✅ For each recommended title, fetch poster via TMDB
         for title in recommended_titles:
             tmdb_url = f"https://api.themoviedb.org/3/search/movie?api_key={API_KEY}&query={title}"
             rec_response = requests.get(tmdb_url, timeout=5)
@@ -251,11 +269,11 @@ def search():
             results = rec_data.get('results', [])
             
             if results:
-                first_result = results[0]  #Take the first matching movie
+                first_result = results[0]
                 recommended_movies.append({
                     'title': first_result.get('title'),
                     'poster_path': first_result.get('poster_path'),
-                    'overview': first_result.get('overview', '')[:100]  #Short overview
+                    'overview': first_result.get('overview', '')[:100]
                 })
             else:
                 recommended_movies.append({
@@ -274,7 +292,46 @@ def search():
         flash("Unexpected error occurred. Try again later.", "danger")
         return render_template('results.html', movies=[], recommended_movies=[])
 
+@app.route("/recommendations")
+@login_required
+def recommendations():
+    # from models import UserSearch
 
+    # ✅ Fetch user's full search history (or last N movies if needed)
+    user_searches = (
+        db.session.query(UserSearch.movie_title)
+        .filter_by(user_id=current_user.id)
+        .order_by(UserSearch.timestamp.desc())
+        .limit(10)  # or remove .limit() to use all
+        .all()
+    )
+
+    # ✅ Convert to list of titles
+    movie_titles = [r[0] for r in user_searches]
+
+    if not movie_titles:
+        flash("You haven't searched for any movies yet.", "info")
+        return render_template("recommendations.html", rec_movies=[])
+
+    # ✅ Generate recommendations using ML model
+    recommended_df = recommend_from_history(movie_titles)
+
+
+    # ✅ Fetch poster and overview via TMDB
+    rec_movies = []
+    for _, row in recommended_df.iterrows():
+        tmdb_url = f"https://api.themoviedb.org/3/search/movie?api_key={API_KEY}&query={row['title']}"
+        r = requests.get(tmdb_url).json()
+        poster_path = r['results'][0]['poster_path'] if r['results'] else None
+        overview = r['results'][0]['overview'] if r['results'] else "No description."
+
+        rec_movies.append({
+            "title": row['title'],
+            "poster_path": poster_path,
+            "overview": overview
+        })
+
+    return render_template("recommendations.html", rec_movies=rec_movies)
 
 # -------------------- Run App --------------------
 if __name__ == '__main__':
