@@ -14,7 +14,6 @@ from datetime import datetime
 from history_recommender import recommend_from_history
 from model_loader import load_model
 import requests
-import joblib
 import re
 import pandas as pd
 
@@ -37,7 +36,7 @@ login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
 #Recommendation function
-def movie_recommender(movie_title, k=5):
+def movie_recommender(movie_title, k=16):
     movie_title = movie_title.lower()
     if movie_title not in new_df['title'].values:
         return []  # Movie not found in dataset
@@ -63,6 +62,31 @@ def fetch_tmdb_results(query, endpoint="search/movie"):
     except requests.exceptions.RequestException:
         flash("TMDb API failed. Please try again later.", "danger")
         return []
+
+# Helper to get personalized recommendations
+def get_user_recommendations(user_id, top_n=16):
+    user_searches = (
+        db.session.query(UserSearch.movie_title)
+        .filter_by(user_id=user_id)
+        .order_by(UserSearch.timestamp.desc())
+        .limit(10)
+        .all()
+    )
+    movie_titles = [r[0] for r in user_searches]
+
+    if not movie_titles:
+        return []
+
+    recommended_df = recommend_from_history(movie_titles, top_n=top_n)
+
+    rec_movies = []
+    if not recommended_df.empty:
+        for _, row in recommended_df.iterrows():
+            results = fetch_tmdb_results(row['title'])
+            if results:
+                rec_movies.append(results[0])
+
+    return rec_movies
 
 # -------------------- Models --------------------
 @login_manager.user_loader
@@ -163,8 +187,9 @@ def save_picture(form_picture):
 # -------------------- Routes --------------------
 @app.route("/")
 @app.route("/home")
+@login_required
 def home():
-    # Fetch trending movies from TMDB
+    # Fetch trending movies
     trending_url = f"https://api.themoviedb.org/3/trending/movie/week?api_key={API_KEY}"
     trending_movies = []
     try:
@@ -173,19 +198,30 @@ def home():
     except:
         flash("Failed to load trending movies", "warning")
 
-    # Fetch popular movies from TMDB
-    popular_url = f"https://api.themoviedb.org/3/movie/popular?api_key={API_KEY}"
-    popular_movies = []
-    try:
-        popular_resp = requests.get(popular_url, timeout=5).json()
-        popular_movies = popular_resp.get("results", [])
-    except:
-        flash("Failed to load popular movies", "warning")
+    # Fetch most searched movies (top 20)
+    most_searched = (
+        db.session.query(UserSearch.movie_title, db.func.count(UserSearch.movie_title).label('count'))
+        .group_by(UserSearch.movie_title)
+        .order_by(db.desc('count'))
+        .limit(20)
+        .all()
+    )
+    most_searched_titles = [row.movie_title for row in most_searched]
+    most_searched_movies = []
+    for title in most_searched_titles:
+        results = fetch_tmdb_results(title)
+        if results:
+            most_searched_movies.append(results[0])
 
-    return render_template("home.html",
-                           trending_movies=trending_movies,
-                           popular_movies=popular_movies)
+    # Get personalized recommendations (up to 16)
+    recommended_movies = get_user_recommendations(current_user.id, top_n=16)
 
+    return render_template(
+        "home.html",
+        trending_movies=trending_movies,
+        most_searched_movies=most_searched_movies,
+        recommended_movies=recommended_movies,
+    )
 
 
 @app.route("/about")
@@ -329,38 +365,11 @@ def search():
 @app.route("/recommendations")
 @login_required
 def recommendations():
-    user_searches = (
-        db.session.query(UserSearch.movie_title)
-        .filter_by(user_id=current_user.id)
-        .order_by(UserSearch.timestamp.desc())
-        .limit(10)
-        .all()
-    )
-
-    movie_titles = [r[0] for r in user_searches]
-
-    if not movie_titles:
-        flash("You haven't searched for any movies yet.", "info")
-        return render_template("recommendations.html", rec_movies=[])
-
-    recommended_df = recommend_from_history(movie_titles)
-
-    if recommended_df.empty:
+    rec_movies = get_user_recommendations(current_user.id)
+    
+    if not rec_movies:
         flash("Start searching for movies to get personalized recommendations!", "info")
-        return render_template("recommendations.html", rec_movies=[])
-
-    rec_movies = []
-    for _, row in recommended_df.iterrows():
-        results = fetch_tmdb_results(row['title'])
-        poster_path = results[0]['poster_path'] if results else None
-        overview = results[0]['overview'] if results else "No description."
-
-        rec_movies.append({
-            "title": row['title'],
-            "poster_path": poster_path,
-            "overview": overview
-        })
-
+    
     return render_template("recommendations.html", rec_movies=rec_movies)
 
 # -------------------- Run App --------------------
