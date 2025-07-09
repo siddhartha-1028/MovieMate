@@ -15,18 +15,15 @@ def recommend_from_history(movie_titles, top_n=8):
             vectors.append(vectorizer.transform([movie_data.loc[idx[0], 'tags']]))
 
     if not vectors:
-        return pd.DataFrame()  # No matches found
+        return pd.DataFrame()
 
-    # Average vector
     avg_vector = sum(vectors) / len(vectors)
     distances, indices = model.kneighbors(avg_vector, n_neighbors=top_n + len(vectors))
 
-    # Exclude the input movies from recommendations
     input_titles_lower = [t.lower() for t in matched_titles]
     recommended_indices = [
         i for i in indices.flatten()
         if movie_data.iloc[i]['title'].lower() not in input_titles_lower
     ][:top_n]
 
-    recommended = movie_data.iloc[recommended_indices]
-    return recommended
+    return movie_data.iloc[recommended_indices]

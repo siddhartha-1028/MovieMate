@@ -26,29 +26,10 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 app.config['UPLOAD_FOLDER'] = 'static/profile_pics'
 API_KEY = os.getenv('API_KEY')
 
-#Load your final_movie_data.csv and ML files
-new_df = pd.read_csv('Datapreprocessing/final_movie_data.csv')
-model, tfidf, vectorizer = load_model()
-
 db = SQLAlchemy(app)
 bcrypt = Bcrypt(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
-
-#Recommendation function
-def movie_recommender(movie_title, k=16):
-    movie_title = movie_title.lower()
-    if movie_title not in new_df['title'].values:
-        return []  # Movie not found in dataset
-
-    movie_index = new_df[new_df['title'] == movie_title].index[0]
-    movie_tfidf = tfidf[movie_index]
-
-    distances, indices = model.kneighbors(movie_tfidf, n_neighbors=k+1)
-    indices = indices.flatten()[1:]
-    recommended_movies = new_df.iloc[indices]['title'].values
-
-    return recommended_movies
 
 def fetch_tmdb_results(query, endpoint="search/movie"):
     try:
@@ -69,7 +50,7 @@ def get_user_recommendations(user_id, top_n=16):
         db.session.query(UserSearch.movie_title)
         .filter_by(user_id=user_id)
         .order_by(UserSearch.timestamp.desc())
-        .limit(10)
+        .limit(15)
         .all()
     )
     movie_titles = [r[0] for r in user_searches]
@@ -223,6 +204,19 @@ def home():
         recommended_movies=recommended_movies,
     )
 
+@app.route("/movie/<int:movie_id>")
+@login_required
+def movie_detail(movie_id):
+    url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={API_KEY}"
+    try:
+        response = requests.get(url, timeout=5)
+        response.raise_for_status()
+        movie = response.json()
+    except Exception as e:
+        flash("Could not fetch movie details.", "danger")
+        return redirect(url_for("search"))
+
+    return render_template("movie_detail.html", movie=movie)
 
 @app.route("/about")
 def about():
@@ -286,23 +280,27 @@ def account():
     image_file = url_for('static', filename='profile_pics/' + current_user.image_file)
     return render_template('account.html', image_file=image_file, form=form)
 
-
-@app.route("/search_page", methods=["GET", "POST"])
-@login_required
-def search_page():
-    form = SearchForm()
-    return render_template('search.html', form=form)
-
-@app.route("/search")
+@app.route("/search", methods=["GET", "POST"])
 @login_required
 def search():
-    query = request.args.get('query', '').strip()
+    form = SearchForm()
 
-    # Block empty, too short, or non-alphanumeric input
-    if not query or len(query) < 2 or not re.match(r"^[a-zA-Z0-9\s:,'&\.\-\(\)\[\]!]+$", query):
+    # If form is submitted via POST
+    if request.method == "POST" and form.validate_on_submit():
+        query = form.query.data.strip()
+    else:
+        # fallback to query param for direct URL searches
+        query = request.args.get('query', '').strip()
+
+    # If no query provided yet, just render search page with empty form
+    if not query:
+        return render_template('search.html', form=form)
+
+    # Validate query format
+    if len(query) < 2 or not re.match(r"^[a-zA-Z0-9\s:,'&\.\-\(\)\[\]!]+$", query):
         flash("Invalid search input. Please enter a valid movie name.", "warning")
-        return redirect(url_for('search_page'))
-        
+        return render_template('search.html', form=form)
+
     try:
         movies = fetch_tmdb_results(query)
         seen_titles = set()
@@ -318,49 +316,46 @@ def search():
 
         if not movies:
             flash("No results found for that search.", "warning")
-        # ✅ Save the search to the database
-        # from models import UserSearch
+
+        # Save user search
         search_record = UserSearch(movie_title=query, user_id=current_user.id)
         db.session.add(search_record)
         db.session.commit()
 
-        # ✅ Get ML recommendations based on this movie
-        recommended_titles = movie_recommender(query)
+        # ML-based recommendations
+        recommended_df = recommend_from_history([query], top_n=8)
         recommended_movies = []
 
-        # ✅ For each recommended title, fetch poster via TMDB
-        for title in recommended_titles:
-            if title.lower() in seen_titles:
-                continue
-            seen_titles.add(title.lower())
-            results = fetch_tmdb_results(title)
-
+        for _, row in recommended_df.iterrows():
+            results = fetch_tmdb_results(row['title'])
             if results:
-                first_result = next(
-                    (m for m in results if m.get('title', '').lower() == title.lower()), 
-                    results[0] if results else None
+                best_match = next(
+                    (m for m in results if m.get('title', '').lower() == row['title'].lower()),
+                    results[0]
                 )
                 recommended_movies.append({
-                    'title': first_result.get('title'),
-                    'poster_path': first_result.get('poster_path'),
-                    'overview': first_result.get('overview', '')[:100]
+                    'id': best_match.get('id'),
+                    'title': best_match.get('title'),
+                    'poster_path': best_match.get('poster_path'),
+                    'overview': best_match.get('overview', '')[:100]
                 })
             else:
                 recommended_movies.append({
-                    'title': title,
+                    'id': None,
+                    'title': row['title'],
                     'poster_path': None,
                     'overview': ''
                 })
-
-        return render_template('results.html', movies=movies, recommended_movies=recommended_movies)
+        return render_template('results.html', form=form, movies=movies, recommended_movies=recommended_movies)
 
     except requests.exceptions.Timeout:
         flash("Cannot connect to TMDB. Try again later.", "danger")
-        return render_template('results.html', movies=[], recommended_movies=[])
+        return render_template('results.html', movies=[], recommended_movies=[], form=form)
 
     except requests.exceptions.RequestException:
         flash("Unexpected error occurred. Try again later.", "danger")
-        return render_template('results.html', movies=[], recommended_movies=[])
+        return render_template('results.html', movies=[], recommended_movies=[], form=form)
+    
 
 @app.route("/recommendations")
 @login_required

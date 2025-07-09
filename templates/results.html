@@ -2,10 +2,11 @@
 {% block content %}
 
 <h2 class="mb-3">Movie Search</h2>
-<form method="GET" action="{{ url_for('search') }}">
+<form method="POST" action="{{ url_for('search') }}">
+    {{ form.hidden_tag() }}
     <div class="input-group mb-4">
-        <input type="text" name="query" class="form-control" placeholder="Search for movies...">
-        <button class="btn btn-primary" type="submit">Search</button>
+        {{ form.query(class="form-control", placeholder="Search for movies...") }}
+        {{ form.submit(class="btn btn-primary") }}
     </div>
 </form>
 
@@ -20,11 +21,13 @@
         {% for movie in movies %}
             <div class="mb-4" style="min-width: 20%; max-width: 20%; flex: 0 0 auto; padding-right: 1rem;">
                 <div class="card h-100">
+                    <a href="{{ url_for('movie_detail', movie_id=movie['id']) }}">
                     {% if movie.poster_path %}
                         <img src="https://image.tmdb.org/t/p/w500{{ movie.poster_path }}" class="card-img-top" alt="{{ movie.title }} poster">
                     {% else %}
                         <img src="{{ url_for('static', filename='default-poster.png') }}" class="card-img-top" alt="No poster available">
                     {% endif %}
+                    </a>
                     <div class="card-body">
                         <h5 class="card-title">{{ movie.title }}</h5>
                         <p class="card-text">{{ movie.overview[:100] }}...</p>
@@ -56,11 +59,13 @@
         {% for rec in first_row %}
             <div class="mb-4" style="min-width: 20%; max-width: 20%; flex: 0 0 auto; padding-right: 1rem;">
                 <div class="card h-100">
+                    <a href="{{ url_for('movie_detail', movie_id=rec['id']) }}">
                     {% if rec.poster_path %}
                         <img src="https://image.tmdb.org/t/p/w500{{ rec.poster_path }}" class="card-img-top" alt="{{ rec.title }} poster">
                     {% else %}
                         <img src="{{ url_for('static', filename='default-poster.png') }}" class="card-img-top" alt="No poster available">
                     {% endif %}
+                    </a>
                     <div class="card-body">
                         <h5 class="card-title">{{ rec.title }}</h5>
                         <p class="card-text">{{ rec.overview }}...</p>
@@ -80,11 +85,13 @@
         {% for rec in second_row %}
             <div class="mb-4" style="min-width: 20%; max-width: 20%; flex: 0 0 auto; padding-right: 1rem;">
                 <div class="card h-100">
+                    <a href="{{ url_for('movie_detail', movie_id=rec['id']) }}">
                     {% if rec.poster_path %}
                         <img src="https://image.tmdb.org/t/p/w500{{ rec.poster_path }}" class="card-img-top" alt="{{ rec.title }} poster">
                     {% else %}
                         <img src="{{ url_for('static', filename='default-poster.png') }}" class="card-img-top" alt="No poster available">
                     {% endif %}
+                    </a>
                     <div class="card-body">
                         <h5 class="card-title">{{ rec.title }}</h5>
                         <p class="card-text">{{ rec.overview }}...</p>

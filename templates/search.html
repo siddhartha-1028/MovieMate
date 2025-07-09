@@ -3,11 +3,11 @@
 <h2 class="mb-3">Movie Search</h2>
 
 <div id="search-container">
-    <form method="GET" action="{{ url_for('search') }}" onsubmit="showSpinner()">
+    <form method="POST" action="{{ url_for('search') }}" onsubmit="showSpinner()">
         {{ form.hidden_tag() }}
         <div class="input-group mb-4">
-            <input type="text" name="query" class="form-control" placeholder="Search for movies..." required>
-            <button class="btn btn-primary" type="submit">Search</button>
+            {{ form.query(class="form-control", placeholder="Search for movies...") }}
+            {{ form.submit(class="btn btn-primary") }}
         </div>
     </form>
 
@@ -20,7 +20,6 @@
     </div>
 </div>
 
-<!-- JavaScript to show spinner -->
 <script>
 function showSpinner() {
     document.getElementById("spinner").style.display = "block";
