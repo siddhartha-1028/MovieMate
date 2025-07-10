@@ -1,22 +1,33 @@
 {% extends "base.html" %}
 {% block content %}
-  <div class="container mt-4">
-    <div class="row">
+<div class="wave"></div>
+<div class="wave"></div>
+<div class="wave"></div>
+
+<div class="container mt-5">
+  <div class="card shadow-lg">
+    <div class="row g-0">
       <div class="col-md-4">
-        <img src="https://image.tmdb.org/t/p/w500{{ movie.poster_path or '/static/default.jpg' }}" class="img-fluid rounded">
+        <img src="{{ movie.poster_path and 'https://image.tmdb.org/t/p/w500' ~ movie.poster_path or url_for('static', filename='default-poster.png') }}"
+             class="img-fluid rounded-start" alt="{{ movie.title }} poster">
       </div>
-      <div class="col-md-8"> 
-        <h2>{{ movie.title }}</h2>
-        <p><strong>Release Date:</strong> {{ movie.release_date }}</p>
-        <p><strong>Rating:</strong> {{ movie.vote_average }} ({{ movie.vote_count }} votes)</p>
-        <p><strong>Genres:</strong>
-          {% for genre in movie.genres %}
-            {{ genre.name }}{% if not loop.last %}, {% endif %}
-          {% endfor %}
-        </p>
-        <p><strong>Overview:</strong> {{ movie.overview }}</p>
-        <a href="{{ url_for('movie.search') }}" class="btn btn-secondary mt-3">Back to Search</a>
+      <div class="col-md-8">
+        <div class="card-body">
+          <h2 class="card-title">{{ movie.title }}</h2>
+          <p class="card-text">
+            <strong>Release Date:</strong> {{ movie.release_date or "Unknown" }}<br>
+            <strong>Rating:</strong> {{ movie.vote_average }} ({{ movie.vote_count }} votes)<br>
+            <strong>Genres:</strong>
+            {% for genre in movie.genres %}
+              <span class="badge bg-secondary">{{ genre.name }}</span>
+            {% endfor %}
+          </p>
+          <hr>
+          <p class="card-text"><strong>Overview:</strong> {{ movie.overview }}</p>
+          <a href="{{ url_for('movie.search') }}" class="btn btn-outline-dark mt-3">🔙 Back to Search</a>
+        </div>
       </div>
     </div>
   </div>
+</div>
 {% endblock %}

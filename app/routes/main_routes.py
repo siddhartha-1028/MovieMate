@@ -34,15 +34,26 @@ def home():
     )
 
     most_searched_titles = [row.movie_title for row in most_searched]
-    most_searched_movies = []
+    seen_titles = set()
+    unique_titles = []
     for title in most_searched_titles:
+        if title not in seen_titles:
+            unique_titles.append(title)
+            seen_titles.add(title)
+
+    seen_movie_ids = set()
+    most_searched_movies = []
+    for title in unique_titles:
         results = fetch_tmdb_results(title)
         if results:
-            most_searched_movies.append(results[0])
+            movie = results[0]
+            if movie['id'] not in seen_movie_ids:
+                most_searched_movies.append(movie)
+                seen_movie_ids.add(movie['id'])
 
     recommended_movies = []
     if current_user.is_authenticated:
-        recommended_movies = get_user_recommendations(current_user.id, top_n=16)
+        recommended_movies = get_user_recommendations(current_user.id, top_n=32)
 
     return render_template(
         "home.html",

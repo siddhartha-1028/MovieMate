@@ -3,7 +3,7 @@ from app.models.models import UserSearch
 from app.utils.tmdb import fetch_tmdb_results
 from app.utils.history_recommender import recommend_from_history
 
-def get_user_recommendations(user_id, top_n=16):
+def get_user_recommendations(user_id, top_n=32):
     user_searches = (
         db.session.query(UserSearch.movie_title)
         .filter_by(user_id=user_id)
