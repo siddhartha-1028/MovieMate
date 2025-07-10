@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% if current_user.is_authenticated %}
+    <h1 class="mb-3">Welcome, {{ current_user.username }}!</h1>
+    <p class="lead">Search for your favorites and Discover movies tailored just for you!</p>
+    <a href="{{ url_for('movie.search') }}" class="btn btn-primary btn-lg mb-4">🔍 Search Movies</a>
+
+    <hr>
+
+    <h2>Trending Movies</h2>
+    <div class="d-flex align-items-center gap-2 mb-2">
+        <span class="badge bg-secondary px-3 py-2 rounded-pill">
+            <span class="swipe-icon">⬅️➡️</span> Swipe to explore
+        </span>
+    </div> 
+    <div class="d-flex flex-nowrap overflow-auto mb-4 pb-2">
+        {% for movie in trending_movies %}
+        <div class="mb-4" style="min-width: 20%; max-width: 20%; flex: 0 0 auto; padding-right: 1rem;">
+            <div class="card h-100">
+                <a href="{{ url_for('movie.movie_detail', movie_id=movie['id']) }}">
+                {% if movie.poster_path %}
+                    <img src="https://image.tmdb.org/t/p/w500{{ movie.poster_path }}" class="card-img-top" alt="{{ movie.title }} poster">
+                {% else %}
+                    <img src="{{ url_for('static', filename='default_poster.jpg') }}" class="card-img-top" alt="No poster available">
+                {% endif %}
+                </a>
+                <div class="card-body">
+                    <h5 class="card-title">{{ movie.title }}</h5>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if most_searched_movies|length > 0 %}
+        <hr>
+        <h2>Most Searched Movies</h2>
+        <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="badge bg-secondary px-3 py-2 rounded-pill">
+                <span class="swipe-icon">⬅️➡️</span> Swipe to explore
+            </span>
+        </div> 
+        <div class="d-flex flex-nowrap overflow-auto mb-4 pb-2">
+            {% for movie in most_searched_movies %}
+            <div class="mb-4" style="min-width: 20%; max-width: 20%; flex: 0 0 auto; padding-right: 1rem;">
+                <div class="card h-100">
+                    <a href="{{ url_for('movie.movie_detail', movie_id=movie['id']) }}">
+                    {% if movie.poster_path %}
+                        <img src="https://image.tmdb.org/t/p/w500{{ movie.poster_path }}" class="card-img-top" alt="{{ movie.title }} poster">
+                    {% else %}
+                        <img src="{{ url_for('static', filename='default_poster.jpg') }}" class="card-img-top" alt="No poster available">
+                    {% endif %}
+                    </a>
+                    <div class="card-body">
+                        <h5 class="card-title">{{ movie.title }}</h5>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <hr>
+
+    <h2>Recommended Movies For You</h2>
+
+    {% if recommended_movies|length > 0 %}
+        {% set half = (recommended_movies|length // 2) + (recommended_movies|length % 2) %}
+        {% set first_row = recommended_movies[:half] %}
+        {% set second_row = recommended_movies[half:] %}
+
+        <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="badge bg-secondary px-3 py-2 rounded-pill">
+                <span class="swipe-icon">⬅️➡️</span> Swipe to explore
+            </span>
+        </div> 
+        <div class="d-flex flex-nowrap overflow-auto mb-4 pb-2">
+            {% for movie in first_row %}
+            <div class="mb-4" style="min-width: 20%; max-width: 20%; flex: 0 0 auto; padding-right: 1rem;">
+                <div class="card h-100">
+                    <a href="{{ url_for('movie.movie_detail', movie_id=movie['id']) }}">
+                    {% if movie.poster_path %}
+                        <img src="https://image.tmdb.org/t/p/w500{{ movie.poster_path }}" class="card-img-top" alt="{{ movie.title }} poster">
+                    {% else %}
+                        <img src="{{ url_for('static', filename='default_poster.jpg') }}" class="card-img-top" alt="No poster available">
+                    {% endif %}
+                    </a>
+                    <div class="card-body">
+                        <h5 class="card-title">{{ movie.title }}</h5>
+                        <p class="card-text">{{ movie.overview[:100] }}{% if movie.overview|length > 100 %}...{% endif %}</p>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="badge bg-secondary px-3 py-2 rounded-pill">
+                <span class="swipe-icon">⬅️➡️</span> Swipe to explore
+            </span>
+        </div> 
+        <div class="d-flex flex-nowrap overflow-auto mb-4 pb-2">
+            {% for movie in second_row %}
+            <div class="mb-4" style="min-width: 20%; max-width: 20%; flex: 0 0 auto; padding-right: 1rem;">
+                <div class="card h-100">
+                    <a href="{{ url_for('movie.movie_detail', movie_id=movie['id']) }}">
+                    {% if movie.poster_path %}
+                        <img src="https://image.tmdb.org/t/p/w500{{ movie.poster_path }}" class="card-img-top" alt="{{ movie.title }} poster">
+                    {% else %}
+                        <img src="{{ url_for('static', filename='default_poster.jpg') }}" class="card-img-top" alt="No poster available">
+                    {% endif %}
+                    </a>
+                    <div class="card-body">
+                        <h5 class="card-title">{{ movie.title }}</h5>
+                        <p class="card-text">{{ movie.overview[:100] }}{% if movie.overview|length > 100 %}...{% endif %}</p>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p>No personalized recommendations found yet, please start browsing.</p>
+    {% endif %}
+{% else %}
+    <h1 class="mb-3">Welcome to MovieMate!</h1>
+    <p class="lead">Sign up or log in to get personalized movie recommendations.</p>
+    <a href="{{ url_for('auth.login') }}" class="btn btn-primary btn-lg mb-4">Log In</a>
+    <a href="{{ url_for('auth.register') }}" class="btn btn-secondary btn-lg mb-4 ms-2">Sign Up</a>
+{% endif %}
+
+<script>
+    function showSpinner() {
+        document.getElementById("spinner").style.display = "block";
+    }
+</script>
+
+{% endblock %}

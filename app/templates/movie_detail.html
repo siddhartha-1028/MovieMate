@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="container mt-4">
+    <div class="row">
+      <div class="col-md-4">
+        <img src="https://image.tmdb.org/t/p/w500{{ movie.poster_path or '/static/default.jpg' }}" class="img-fluid rounded">
+      </div>
+      <div class="col-md-8"> 
+        <h2>{{ movie.title }}</h2>
+        <p><strong>Release Date:</strong> {{ movie.release_date }}</p>
+        <p><strong>Rating:</strong> {{ movie.vote_average }} ({{ movie.vote_count }} votes)</p>
+        <p><strong>Genres:</strong>
+          {% for genre in movie.genres %}
+            {{ genre.name }}{% if not loop.last %}, {% endif %}
+          {% endfor %}
+        </p>
+        <p><strong>Overview:</strong> {{ movie.overview }}</p>
+        <a href="{{ url_for('movie.search') }}" class="btn btn-secondary mt-3">Back to Search</a>
+      </div>
+    </div>
+  </div>
+{% endblock %}
