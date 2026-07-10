@@ -1,72 +1,94 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="wave"></div>
-<div class="wave"></div>
-<div class="wave"></div>
-
 <div class="container mt-5">
-  <h2 class="text-white mb-4">Movie Search</h2>
+  <h1 class="category-title mb-4" style="border:none; font-size:2rem;">🔍 Search Movies</h1>
 
-  <form method="POST" action="{{ url_for('movie.search') }}" onsubmit="showSpinner()">
+  <!-- Search Form with Filters -->
+  <form method="POST" action="{{ url_for('movie.search') }}" onsubmit="showSpinner()" class="mb-5">
     {{ form.hidden_tag() }}
-    <div class="input-group mb-4">
-      {{ form.query(class="form-control", placeholder="Search for movies...") }}
-      <button type="submit" class="btn btn-light">{{ form.submit.label.text }}</button>
+
+    <!-- Main search bar -->
+    <div class="input-group mb-3" style="border-radius:8px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.4);">
+      {{ form.query(class="form-control form-control-lg",
+                    placeholder="Search for a movie title...",
+                    style="background:#1f1f1f; color:#f8f9fa; border:none; font-size:1rem;",
+                    value=(query or '')) }}
+      <button type="submit" class="btn btn-netflix px-4 fs-5">Search</button>
+    </div>
+
+    <!-- Filter dropdowns -->
+    <div class="row g-2">
+      <div class="col-sm-4">
+        <label class="form-label text-muted small">Genre</label>
+        {{ form.genre_id(class="form-select",
+                        style="background:#1f1f1f; color:#f8f9fa; border:1px solid #444;") }}
+      </div>
+      <div class="col-sm-4">
+        <label class="form-label text-muted small">Release Year</label>
+        {{ form.year(class="form-select",
+                    style="background:#1f1f1f; color:#f8f9fa; border:1px solid #444;") }}
+      </div>
+      <div class="col-sm-4">
+        <label class="form-label text-muted small">Minimum Rating</label>
+        {{ form.min_rating(class="form-select",
+                           style="background:#1f1f1f; color:#f8f9fa; border:1px solid #444;") }}
+      </div>
     </div>
   </form>
 
-  <div id="spinner" style="display: none;" class="text-center my-4">
-    <div class="spinner-border text-light" role="status"></div>
-    <p class="text-white mt-2">Searching movies...</p>
+  <!-- Loading Spinner -->
+  <div id="spinner" style="display:none;" class="text-center my-5">
+    <div class="spinner-border" style="color:var(--primary-red); width:3rem; height:3rem;" role="status"></div>
+    <p class="mt-3 text-muted">Searching TMDB…</p>
   </div>
 
+  <!-- Search Results -->
   {% if movies %}
-  <div class="card shadow mb-5">
-    <div class="card-body">
-      <h4 class="card-title">🎬 TMDB Search Results</h4>
-      <div class="d-flex flex-nowrap overflow-auto mt-3 pb-2">
-        {% for movie in movies %}
-        <div class="me-3" style="min-width: 200px;">
-          <div class="card h-100">
-            <a href="{{ url_for('movie.movie_detail', movie_id=movie['id']) }}">
-              <img src="{{ movie.poster_path and 'https://image.tmdb.org/t/p/w500' ~ movie.poster_path or url_for('static', filename='default-poster.png') }}"
-                   class="card-img-top" alt="{{ movie.title }} poster">
-            </a>
-            <div class="card-body">
-              <h6 class="card-title">{{ movie.title }}</h6>
-              <p class="card-text small">{{ movie.overview[:100] }}{% if movie.overview|length > 100 %}...{% endif %}</p>
-            </div>
-          </div>
+  <div class="mb-5">
+    <h2 class="category-title">Search Results</h2>
+    <div class="movie-row">
+      {% for movie in movies %}
+      <div class="movie-card">
+        <a href="{{ url_for('movie.movie_detail', movie_id=movie['id']) }}">
+          <img src="{{ movie.poster_path and 'https://image.tmdb.org/t/p/w500' ~ movie.poster_path or url_for('static', filename='default-poster.png') }}"
+               class="card-img-top" alt="{{ movie.title }} poster">
+        </a>
+        <div class="movie-card-body">
+          <div class="movie-card-title">{{ movie.title }}</div>
+          {% if movie.vote_average %}
+            <div style="color:#f5c518; font-size:0.8rem;">★ {{ "%.1f"|format(movie.vote_average) }}</div>
+          {% endif %}
         </div>
-        {% endfor %}
       </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% elif movies is not none %}
+    <p class="text-muted text-center py-5">No movies matched your search. Try different keywords or filters.</p>
+  {% endif %}
+
+  <!-- ML Recommendations based on search -->
+  {% if recommended_movies %}
+  <div class="mb-5">
+    <h2 class="category-title">You Might Also Like</h2>
+    <div class="movie-row">
+      {% for rec in recommended_movies %}
+      {% if rec.id %}
+      <div class="movie-card">
+        <a href="{{ url_for('movie.movie_detail', movie_id=rec['id']) }}">
+          <img src="{{ rec.poster_path and 'https://image.tmdb.org/t/p/w500' ~ rec.poster_path or url_for('static', filename='default-poster.png') }}"
+               class="card-img-top" alt="{{ rec.title }} poster">
+        </a>
+        <div class="movie-card-body">
+          <div class="movie-card-title">{{ rec.title }}</div>
+        </div>
+      </div>
+      {% endif %}
+      {% endfor %}
     </div>
   </div>
   {% endif %}
 
-  {% if recommended_movies %}
-  <div class="card shadow mb-5">
-    <div class="card-body">
-      <h4 class="card-title">🔁 Recommended Based on Your Search</h4>
-      <div class="d-flex flex-nowrap overflow-auto mt-3 pb-2">
-        {% for rec in recommended_movies %}
-        <div class="me-3" style="min-width: 200px;">
-          <div class="card h-100">
-            <a href="{{ url_for('movie.movie_detail', movie_id=rec['id']) }}">
-              <img src="{{ rec.poster_path and 'https://image.tmdb.org/t/p/w500' ~ rec.poster_path or url_for('static', filename='default-poster.png') }}"
-                   class="card-img-top" alt="{{ rec.title }} poster">
-            </a>
-            <div class="card-body">
-              <h6 class="card-title">{{ rec.title }}</h6>
-              <p class="card-text small">{{ rec.overview[:100] }}{% if rec.overview|length > 100 %}...{% endif %}</p>
-            </div>
-          </div>
-        </div>
-        {% endfor %}
-      </div>
-    </div>
-  </div>
-  {% endif %}
 </div>
 
 <script>

@@ -1,31 +1,36 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="wave"></div>
-<div class="wave"></div>
-<div class="wave"></div>
-
 <div class="container mt-5">
-  <h2 class="text-white mb-4">🎯 Your Personalized Movie Recommendations</h2>
+
+  <h1 class="category-title mb-4" style="border:none; font-size:2rem;">🎯 Recommended For You</h1>
 
   {% if rec_movies %}
-  <div class="row">
+  <div class="row g-4">
     {% for movie in rec_movies %}
-    <div class="col-6 col-md-4 col-lg-3 col-xl-2 mb-4">
-      <div class="card h-100 shadow-sm">
+    <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+      <div class="movie-card w-100 mw-100">
         <a href="{{ url_for('movie.movie_detail', movie_id=movie['id']) }}">
           <img src="{{ movie.poster_path and 'https://image.tmdb.org/t/p/w500' ~ movie.poster_path or url_for('static', filename='default-poster.png') }}"
-               class="card-img-top" alt="{{ movie.title }} poster">
+               class="card-img-top" alt="{{ movie.title }} poster"
+               style="height:260px; object-fit:cover; border-radius:8px 8px 0 0;">
         </a>
-        <div class="card-body">
-          <h6 class="card-title">{{ movie.title }}</h6>
-          <p class="card-text small">{{ movie.overview[:100] }}{% if movie.overview|length > 100 %}...{% endif %}</p>
+        <div class="movie-card-body">
+          <div class="movie-card-title">{{ movie.title }}</div>
+          {% if movie.vote_average %}
+            <div style="color:#f5c518; font-size:0.8rem;">★ {{ "%.1f"|format(movie.vote_average) }}</div>
+          {% endif %}
         </div>
       </div>
     </div>
     {% endfor %}
   </div>
   {% else %}
-  <p class="text-white">You have no recommendations yet. Start searching for movies!</p>
+  <div class="text-center py-5">
+    <p class="fs-4 text-muted mb-4">No recommendations yet.</p>
+    <p class="text-muted mb-5">Search for some movies you enjoy — our AI engine will then suggest similar ones.</p>
+    <a href="{{ url_for('movie.search') }}" class="btn btn-netflix btn-lg px-5">Search Movies</a>
+  </div>
   {% endif %}
+
 </div>
 {% endblock %}

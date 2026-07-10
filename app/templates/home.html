@@ -1,96 +1,96 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="wave"></div>
-<div class="wave"></div>
-<div class="wave"></div>
 
-<div class="container mt-5">
+<div class="container mt-4">
   {% if current_user.is_authenticated %}
-    <div class="text-center mb-5">
-      <h1 class="text-white">Welcome, {{ current_user.username }}!</h1>
-      <p class="lead text-light">Search for your favorites and discover movies tailored just for you!</p>
-      <a href="{{ url_for('movie.search') }}" class="btn btn-light btn-lg mt-3">🔍 Search Movies</a>
-    </div>
-
-    <!-- Trending Movies -->
-    <div class="card shadow mb-5">
-      <div class="card-body">
-        <h2 class="card-title">🔥 Trending Movies</h2>
-        <div class="d-flex flex-nowrap overflow-auto mt-3 pb-2">
-          {% for movie in trending_movies %}
-            <div class="me-3" style="min-width: 200px;">
-              <div class="card h-100">
-                <a href="{{ url_for('movie.movie_detail', movie_id=movie['id']) }}">
-                  <img src="{{ movie.poster_path and 'https://image.tmdb.org/t/p/w500' ~ movie.poster_path or url_for('static', filename='default-poster.png') }}"
-                       class="card-img-top" alt="{{ movie.title }} poster">
-                </a>
-                <div class="card-body">
-                  <h6 class="card-title text-center">{{ movie.title }}</h6>
-                </div>
-              </div>
-            </div>
-          {% endfor %}
+    
+    <!-- Hero Featured Section -->
+    {% if trending_movies %}
+      {% set featured = trending_movies[0] %}
+      <div class="hero-section" style="background-image: url('https://image.tmdb.org/t/p/original{{ featured.backdrop_path or featured.poster_path }}');">
+        <div class="hero-overlay"></div>
+        <div class="hero-content">
+          <span class="badge bg-danger mb-2">★ FEATURED</span>
+          <h1 class="hero-title text-white">{{ featured.title }}</h1>
+          <p class="lead text-light mb-4">{{ featured.overview[:180] }}{% if featured.overview|length > 180 %}...{% endif %}</p>
+          <a href="{{ url_for('movie.movie_detail', movie_id=featured.id) }}" class="btn btn-netflix btn-lg px-4 me-2">▶ Play Info</a>
+          <a href="{{ url_for('movie.search') }}" class="btn btn-netflix-outline btn-lg px-4">🔍 Search More</a>
         </div>
       </div>
-    </div>
+    {% endif %}
 
-    <!-- Most Searched -->
-    {% if most_searched_movies %}
-    <div class="card shadow mb-5">
-      <div class="card-body">
-        <h2 class="card-title">📈 Most Searched Movies</h2>
-        <div class="d-flex flex-nowrap overflow-auto mt-3 pb-2">
-          {% for movie in most_searched_movies %}
-            <div class="me-3" style="min-width: 200px;">
-              <div class="card h-100">
-                <a href="{{ url_for('movie.movie_detail', movie_id=movie['id']) }}">
-                  <img src="{{ movie.poster_path and 'https://image.tmdb.org/t/p/w500' ~ movie.poster_path or url_for('static', filename='default-poster.png') }}"
-                       class="card-img-top" alt="{{ movie.title }} poster">
-                </a>
-                <div class="card-body">
-                  <h6 class="card-title text-center">{{ movie.title }}</h6>
-                </div>
-              </div>
+    <!-- Trending Movies Row -->
+    {% if trending_movies %}
+    <div class="mb-5">
+      <h2 class="category-title">Trending Movies</h2>
+      <div class="movie-row">
+        {% for movie in trending_movies %}
+          <div class="movie-card">
+            <a href="{{ url_for('movie.movie_detail', movie_id=movie['id']) }}">
+              <img src="{{ movie.poster_path and 'https://image.tmdb.org/t/p/w500' ~ movie.poster_path or url_for('static', filename='default-poster.png') }}"
+                   class="card-img-top" alt="{{ movie.title }} poster">
+            </a>
+            <div class="movie-card-body">
+              <div class="movie-card-title">{{ movie.title }}</div>
             </div>
-          {% endfor %}
-        </div>
+          </div>
+        {% endfor %}
       </div>
     </div>
     {% endif %}
 
-    <!-- Recommendations -->
-    <div class="card shadow mb-5">
-      <div class="card-body">
-        <h2 class="card-title">🎯 Recommended For You</h2>
-        {% if recommended_movies %}
-        <div class="d-flex flex-nowrap overflow-auto mt-3 pb-2">
-          {% for movie in recommended_movies %}
-            <div class="me-3" style="min-width: 200px;">
-              <div class="card h-100">
-                <a href="{{ url_for('movie.movie_detail', movie_id=movie['id']) }}">
-                  <img src="{{ movie.poster_path and 'https://image.tmdb.org/t/p/w500' ~ movie.poster_path or url_for('static', filename='default-poster.png') }}"
-                       class="card-img-top" alt="{{ movie.title }} poster">
-                </a>
-                <div class="card-body">
-                  <h6 class="card-title">{{ movie.title }}</h6>
-                  <p class="card-text small">{{ movie.overview[:100] }}{% if movie.overview|length > 100 %}...{% endif %}</p>
-                </div>
-              </div>
+    <!-- Most Searched Movies Row -->
+    {% if most_searched_movies %}
+    <div class="mb-5">
+      <h2 class="category-title">Most Searched Movies</h2>
+      <div class="movie-row">
+        {% for movie in most_searched_movies %}
+          <div class="movie-card">
+            <a href="{{ url_for('movie.movie_detail', movie_id=movie['id']) }}">
+              <img src="{{ movie.poster_path and 'https://image.tmdb.org/t/p/w500' ~ movie.poster_path or url_for('static', filename='default-poster.png') }}"
+                   class="card-img-top" alt="{{ movie.title }} poster">
+            </a>
+            <div class="movie-card-body">
+              <div class="movie-card-title">{{ movie.title }}</div>
             </div>
-          {% endfor %}
-        </div>
-        {% else %}
-        <p class="text-muted">No recommendations yet. Start searching for movies!</p>
-        {% endif %}
+          </div>
+        {% endfor %}
       </div>
     </div>
+    {% endif %}
+
+    <!-- Recommendations Row -->
+    <div class="mb-5">
+      <h2 class="category-title">Recommended For You</h2>
+      {% if recommended_movies %}
+      <div class="movie-row">
+        {% for movie in recommended_movies %}
+          <div class="movie-card">
+            <a href="{{ url_for('movie.movie_detail', movie_id=movie['id']) }}">
+              <img src="{{ movie.poster_path and 'https://image.tmdb.org/t/p/w500' ~ movie.poster_path or url_for('static', filename='default-poster.png') }}"
+                   class="card-img-top" alt="{{ movie.title }} poster">
+            </a>
+            <div class="movie-card-body">
+              <div class="movie-card-title">{{ movie.title }}</div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+      {% else %}
+        <p class="text-muted ps-3">No recommendations yet. Start searching for movies to build your history!</p>
+      {% endif %}
+    </div>
+
   {% else %}
-    <div class="text-center text-white mt-5">
-      <h1>Welcome to MovieMate!</h1>
-      <p class="lead">Sign up or log in to get personalized movie recommendations.</p>
-      <a href="{{ url_for('auth.login') }}" class="btn btn-light btn-lg mt-3">Log In</a>
-      <a href="{{ url_for('auth.register') }}" class="btn btn-outline-light btn-lg mt-3 ms-2">Sign Up</a>
+    <!-- Public Landing Page -->
+    <div class="text-center text-white py-5 my-5" style="background: rgba(0,0,0,0.5); border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); padding: 3rem;">
+      <h1 class="display-3 fw-bold mb-3" style="color: var(--primary-red);">MovieMate</h1>
+      <p class="lead mb-4 fs-3">Unlimited movie recommendations, custom ratings, and private trailers.</p>
+      <p class="mb-5 text-muted">Sign up or log in to get started and curate your customized watchlist.</p>
+      <a href="{{ url_for('auth.login') }}" class="btn btn-netflix btn-lg px-5 py-3 me-3 fs-5">Log In</a>
+      <a href="{{ url_for('auth.register') }}" class="btn btn-netflix-outline btn-lg px-5 py-3 fs-5">Sign Up</a>
     </div>
   {% endif %}
 </div>
 {% endblock %}
+

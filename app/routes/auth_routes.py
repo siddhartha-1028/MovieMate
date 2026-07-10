@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_user, logout_user, current_user, login_required
 from app import db, bcrypt
-from app.models.models import User
+from app.models.models import User, Watchlist, Review
 from app.forms.forms import RegistrationForm, LoginForm, UpdateAccountForm
 from app.utils.helpers import save_picture
 import os
@@ -72,4 +72,15 @@ def account():
         form.email.data = current_user.email
 
     image_file = url_for('static', filename='profile_pics/' + current_user.image_file)
-    return render_template('account.html', image_file=image_file, form=form)
+
+    # Fetch watchlist and reviews for the current user to display on their profile
+    watchlist_items = Watchlist.query.filter_by(user_id=current_user.id).order_by(Watchlist.added_at.desc()).all()
+    user_reviews = Review.query.filter_by(user_id=current_user.id).order_by(Review.timestamp.desc()).all()
+
+    return render_template(
+        'account.html',
+        image_file=image_file,
+        form=form,
+        watchlist_items=watchlist_items,
+        user_reviews=user_reviews
+    )

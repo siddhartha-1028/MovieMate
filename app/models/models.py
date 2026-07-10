@@ -25,3 +25,37 @@ class UserSearch(db.Model):
 
     def __repr__(self):
         return f"<UserSearch {self.movie_title} by User {self.user_id}>"
+
+class Watchlist(db.Model):
+    """
+    Stores movies a user has saved to their watchlist.
+    Each row = one movie saved by one user.
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    movie_id = db.Column(db.Integer, nullable=False)           # TMDB's ID for the movie
+    movie_title = db.Column(db.String(255), nullable=False)
+    poster_path = db.Column(db.String(255), nullable=True)
+    added_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<Watchlist movie={self.movie_title} user={self.user_id}>"
+
+class Review(db.Model):
+    """
+    Stores a star rating + written review left by a user on a specific movie.
+    Each row = one review by one user on one movie.
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    movie_id = db.Column(db.Integer, nullable=False)           # TMDB's ID for the movie
+    movie_title = db.Column(db.String(255), nullable=False)
+    rating = db.Column(db.Integer, nullable=False)             # 1 to 5 stars
+    content = db.Column(db.Text, nullable=True)                # written review text
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relationships: easy access to the user who wrote this review
+    user = db.relationship('User', backref=db.backref('reviews', lazy=True))
+
+    def __repr__(self):
+        return f"<Review movie={self.movie_title} rating={self.rating} user={self.user_id}>"

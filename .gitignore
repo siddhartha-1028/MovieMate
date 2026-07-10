@@ -1,14 +1,36 @@
-# Virtual environment
-venv/
-
-# Bytecode files
+# ── Python ────────────────────────────────────────────────────
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
 
-# Database file
-instance/database.db
+# ── Virtual Environments ───────────────────────────────────────
+venv/
+.venv/
+env/
+ENV/
 
-# Secret files
+# ── Environment Variables & Secrets ───────────────────────────
+# NEVER commit your .env file — it contains API keys!
 .env
 
+# ── Database (auto-generated, should not be version controlled)
+*.db
+*.sqlite3
 
+# ── macOS system files ─────────────────────────────────────────
+.DS_Store
+
+# ── IDE / Editor files ─────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ── Jupyter Notebooks checkpoints ─────────────────────────────
+.ipynb_checkpoints/
+
+# ── Uploaded user images (dynamic content, not source code) ───
+app/static/profile_pics/*
+!app/static/profile_pics/.gitkeep

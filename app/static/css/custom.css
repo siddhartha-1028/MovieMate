@@ -1,0 +1,192 @@
+/* MovieMate Custom Cinematic Theme */
+
+/* Typography & Variables */
+:root {
+  --primary-red: #e50914;
+  --hover-red: #ff0a16;
+  --dark-bg: #141414;
+  --card-bg: #1f1f1f;
+  --text-light: #f8f9fa;
+  --text-muted: #aaaaaa;
+}
+
+/* Global Body */
+body {
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #141414;
+  color: var(--text-light);
+  min-height: 100vh;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #141414;
+}
+::-webkit-scrollbar-thumb {
+  background: #333333;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-red);
+}
+
+/* Navbar Customization */
+.navbar {
+  background-color: rgba(20, 20, 20, 0.95) !important;
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  transition: background-color 0.3s ease;
+}
+
+.navbar-brand {
+  font-weight: 700;
+  color: var(--primary-red) !important;
+  font-size: 1.6rem;
+  letter-spacing: 0.5px;
+}
+
+.navbar-brand img {
+  border: 2px solid var(--primary-red);
+}
+
+.nav-link {
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.nav-link:hover, .nav-link.active {
+  color: var(--primary-red) !important;
+}
+
+/* Hero Section */
+.hero-section {
+  position: relative;
+  height: 50vh;
+  min-height: 400px;
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 2.5rem;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.hero-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(to right, rgba(0,0,0,0.9) 30%, rgba(0,0,0,0.3) 100%);
+  z-index: 1;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 2;
+  max-width: 600px;
+  padding: 3rem;
+}
+
+.hero-title {
+  font-size: 3rem;
+  font-weight: 700;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.6);
+  margin-bottom: 1rem;
+}
+
+/* Cinematic Rows & Categories */
+.category-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: var(--text-light);
+  border-left: 4px solid var(--primary-red);
+  padding-left: 10px;
+}
+
+.movie-row {
+  display: flex;
+  overflow-x: auto;
+  gap: 1.25rem;
+  padding-bottom: 1.5rem;
+  scroll-behavior: smooth;
+}
+
+/* Movie Card Zoom & Fade Effects */
+.movie-card {
+  min-width: 180px;
+  max-width: 180px;
+  background-color: var(--card-bg);
+  border: none;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.3s ease;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+.movie-card:hover {
+  transform: scale(1.06);
+  box-shadow: 0 10px 20px rgba(229, 9, 20, 0.2);
+  z-index: 5;
+}
+
+.movie-card img {
+  height: 270px;
+  object-fit: cover;
+  transition: filter 0.3s ease;
+}
+
+.movie-card:hover img {
+  filter: brightness(0.8);
+}
+
+.movie-card-body {
+  padding: 0.75rem;
+  background-color: var(--card-bg);
+}
+
+.movie-card-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 0.2rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-light);
+}
+
+/* Custom Buttons */
+.btn-netflix {
+  background-color: var(--primary-red);
+  color: white;
+  border: none;
+  font-weight: 600;
+  transition: background-color 0.2s ease;
+}
+
+.btn-netflix:hover {
+  background-color: var(--hover-red);
+  color: white;
+}
+
+.btn-netflix-outline {
+  background-color: transparent;
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  font-weight: 600;
+  transition: border-color 0.2s, background-color 0.2s;
+}
+
+.btn-netflix-outline:hover {
+  border-color: white;
+  background-color: rgba(255, 255, 255, 0.1);
+  color: white;
+}
